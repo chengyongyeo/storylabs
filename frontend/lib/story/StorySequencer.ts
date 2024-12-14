@@ -36,18 +36,25 @@ export class StorySequencer {
         await audioService.streamAudioChunk(delta.audio, item.id);
       }
 
-      // Only handle completion when the conversation is actually complete
-      if (item.status === 'completed' && this.currentEventId) {
-        console.log('Event completed:', this.currentEventId);
+      // Check for true completion with audio
+      if (item.status === 'completed' && item.formatted?.audio?.length && this.currentEventId) {
+        console.log('Event fully completed with audio:', this.currentEventId);
         const audioEvent = this.audioEvents.get(this.currentEventId);
+        
         if (audioEvent) {
-          // Wait a small delay to ensure all audio has finished playing
-          setTimeout(() => {
-            audioEvent.status = 'complete';
-            this.isProcessing = false;
-            this.currentEventId = undefined;
-            this.processNextEvent();
-          }, 500); // Add a small buffer to ensure audio completion
+          // Ensure we have all audio data before marking as complete
+          try {
+            // Optional: You can also store the complete audio data if needed
+            // const completeAudio = item.formatted.audio;
+            
+            setTimeout(() => {
+              audioEvent.status = 'complete';
+              this.isProcessing = false;
+              this.currentEventId = undefined;
+            }, 500);
+          } catch (error) {
+            console.error('Error handling audio completion:', error);
+          }
         }
       }
     });
@@ -115,7 +122,6 @@ export class StorySequencer {
     }
     console.log('Scene loaded, events initialized:', this.audioEvents.size);
     
-    await this.processNextEvent();
   }
 
   public async processNextEvent(): Promise<AudioEvent | null> {
