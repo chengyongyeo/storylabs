@@ -45,7 +45,12 @@ class AudioService {
 
   getFrequencies(channel: 'voice' | 'frequency' | 'music' = 'voice') {
     if (!this.isInitialized) return null;
-    return this.player.getFrequencies(channel);
+    try {
+      return this.player.getFrequencies(channel);
+    } catch (error) {
+      console.error('Error getting frequencies:', error);
+      return null;
+    }
   }
 
   async unlockAudio() {
