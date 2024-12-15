@@ -1,5 +1,6 @@
 // AudioService.ts
 import { WavStreamPlayer } from '../wavtools/lib/wav_stream_player';
+import EventEmitter from 'events';
 
 // Export the type for use in other files
 export type { WavStreamPlayer };
@@ -9,6 +10,7 @@ class AudioService {
   private player: WavStreamPlayer;
   private isInitialized: boolean = false;
   private audioContext: AudioContext | null = null;
+  private eventEmitter = new EventEmitter();
 
   private constructor() {
     this.player = new WavStreamPlayer({ sampleRate: 24000 });
@@ -38,6 +40,9 @@ class AudioService {
       throw new Error('AudioService not initialized');
     }
     this.player.add16BitPCM(audioData, trackId);
+    
+    // Emit event when chunk is processed
+    this.eventEmitter.emit('chunkProcessed', trackId);
   }
 
   async interrupt() {
@@ -68,6 +73,10 @@ class AudioService {
 
   isReady(): boolean {
     return this.isInitialized && !!this.audioContext;
+  }
+
+  onAudioComplete(callback: (trackId: string) => void) {
+    this.eventEmitter.on('chunkProcessed', callback);
   }
 }
 

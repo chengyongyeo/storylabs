@@ -27,6 +27,7 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
   const [scene, setScene] = useState<ParsedScene | null>(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [isSystemReady, setIsSystemReady] = useState(false);
+  const [isEventComplete, setIsEventComplete] = useState(false);
 
   const wavStreamPlayer = useRef<WavStreamPlayer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -127,13 +128,7 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
       // Scale context to match DPR
       ctx.scale(dpr, dpr);
       
-      console.log('Canvas resized:', {
-        displayWidth: rect.width,
-        displayHeight: rect.height,
-        actualWidth: canvas.width,
-        actualHeight: canvas.height,
-        dpr
-      });
+
     };
 
     // Initial resize
@@ -184,10 +179,16 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
   }, [isSystemReady, isAudioPlaying]);
 
   // Audio playback controls
-  const goToNextEvent = () => {
-    if (scene && currentEventIndex < scene.events.length - 1 && !isAudioPlaying) {
-      setCurrentEventIndex(prev => prev + 1);
-    }
+  const goToNextEvent = async () => {
+    if (!scene || !sequencer || currentEventIndex >= scene.events.length - 1) return;
+    
+    setCurrentEventIndex(prev => prev + 1);
+    setIsEventComplete(false);
+    
+    // Wait for state update before processing next event
+    setTimeout(async () => {
+      await sequencer.processNextEvent();
+    }, 0);
   };
 
   const goToPreviousEvent = () => {
@@ -197,8 +198,17 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
   };
 
   useEffect(() => {
-    console.log('Audio playing state:', isAudioPlaying);
-  }, [isAudioPlaying]);
+    if (!sequencer || !currentEvent) return;
+    
+    const checkEventStatus = setInterval(() => {
+      const status = sequencer.getEventStatus(currentEvent.id);
+      if (status === 'complete') {
+        setIsEventComplete(true);
+      }
+    }, 100);
+
+    return () => clearInterval(checkEventStatus);
+  }, [sequencer, currentEvent]);
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl w-full">
@@ -285,7 +295,7 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
 
         <Button
           onClick={goToNextEvent}
-          disabled={currentEventIndex >= scene?.events.length - 1 || isAudioPlaying}
+          disabled={currentEventIndex >= scene?.events.length - 1 || isAudioPlaying || !isEventComplete}
           className="text-lg py-2 px-6 bg-yellow-400 hover:bg-yellow-500 text-purple-800 font-bold rounded-full transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
         >
           Next

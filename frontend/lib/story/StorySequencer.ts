@@ -174,7 +174,16 @@ export class StorySequencer {
         { type: 'input_text', text: pendingEvent.text }
       ]);
 
-      await this.client.realtime.send('response.create');
+      await this.client.realtime.send('response.create', {
+        modalities: ['text', 'audio'],
+        instructions: characterInstructions,
+        voice: pendingEvent.character?.voice || 'coral', // Default narrator voice
+        output_audio_format: 'pcm16',
+        temperature: 0.3,
+        max_output_tokens: 150
+    });
+      
+      // Return the audio event so UI can track its status
       return audioEvent;
     } catch (error) {
       console.error('Error processing audio event:', error);
@@ -193,4 +202,10 @@ export class StorySequencer {
   public getAllEvents(): AudioEvent[] {
     return Array.from(this.audioEvents.values());
   }
+
+  // Add method to check if current event is complete
+  public isCurrentEventComplete(): boolean {
+    return !this.isProcessing && !this.currentEventId;
+  }
 }
+

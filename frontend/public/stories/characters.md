@@ -6,7 +6,7 @@ personality: {"trait":"engaging and imaginative","goal":"guide children through 
 
 @character: Captain Zip
 prompt: Friendly astronaut with a bright smile and sparkly space suit
-voice: onyx
+voice: sage
 personality: {"trait":"adventurous and encouraging","goal":"teach children about space exploration","speech_style":"clear and enthusiastic"}
 
 @character: Banango
