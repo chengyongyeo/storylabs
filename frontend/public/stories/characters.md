@@ -1,12 +1,12 @@
 # characters.md
 @character: Narrator
 prompt: Warm, friendly storyteller with a magical presence
-voice: sage
+voice: coral
 personality: {"trait":"engaging and imaginative","goal":"guide children through the story","speech_style":"clear, warm, and filled with wonder"}
 
 @character: Captain Zip
 prompt: Friendly astronaut with a bright smile and sparkly space suit
-voice: ash
+voice: onyx
 personality: {"trait":"adventurous and encouraging","goal":"teach children about space exploration","speech_style":"clear and enthusiastic"}
 
 @character: Banango

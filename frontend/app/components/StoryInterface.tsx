@@ -9,6 +9,7 @@ import { StorySequencer } from '@/lib/story/StorySequencer'
 import { WavRenderer } from '@/lib/wavtools/WavRenderer'
 import type { ParsedScene, StoryEvent } from '@/lib/story/SceneParser'
 import { audioService } from '@/lib/audio/AudioService'
+import { WavStreamPlayer } from '@/lib/audio/AudioService'
 
 interface StoryInterfaceProps {
   userInfo: {
@@ -23,10 +24,13 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
   const [sequencer, setSequencer] = useState<StorySequencer | null>(null);
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const [scene, setScene] = useState<ParsedScene | null>(null);
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  const [isSystemReady, setIsSystemReady] = useState(false);
 
-  // Refs
+  const wavStreamPlayer = useRef<WavStreamPlayer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
+
   // Derived state
   const currentEvent = scene?.events[currentEventIndex];
   const isAudioPlaying = sequencer?.getEventStatus(currentEvent?.id || '') === 'playing';
@@ -34,35 +38,58 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
   // Initialize with env variable
   const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
 
+  // Initialize audio system first
   useEffect(() => {
-    if (!apiKey) return;
+    let mounted = true;
+
+    async function initializeAudio() {
+      try {
+        console.log('Initializing audio system...');
+        await audioService.initialize();
+        if (!mounted) return;
+        
+        wavStreamPlayer.current = audioService.getPlayer();
+        await audioService.unlockAudio();
+        setIsAudioReady(true);
+        console.log('Audio system initialized');
+      } catch (error) {
+        console.error('Failed to initialize audio:', error);
+      }
+    }
+
+    initializeAudio();
+    return () => { mounted = false; };
+  }, []);
+
+  // Initialize story sequencer after audio is ready
+  useEffect(() => {
+    if (!apiKey || !isAudioReady) return;
 
     let mounted = true;
 
     async function initializeStory() {
       try {
+        console.log('Initializing story system...');
         const seq = new StorySequencer({ apiKey });
         await seq.connect();
         
         if (!mounted) return;
         setSequencer(seq);
 
-        // Load story assets
         const [charactersText, sceneText] = await Promise.all([
           fetch('/stories/characters.md').then(r => r.text()),
           fetch('/stories/scene_rocket_intro.md').then(r => r.text())
         ]);
 
-        // Parse and load scene
         const parser = new SceneParser(charactersText);
         const parsedScene = parser.parseScene(sceneText);
         await seq.loadScene(parsedScene);
         
         if (!mounted) return;
         setScene(parsedScene);
-
-        // Unlock audio and auto-play first event
-        await audioService.unlockAudio();
+        setIsSystemReady(true);
+        console.log('Story system initialized');
+        
         await seq.processNextEvent();
       } catch (error) {
         console.error('Error initializing story:', error);
@@ -70,54 +97,73 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
     }
 
     initializeStory();
-    return () => {
-      mounted = false;
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      sequencer?.disconnect();
-    };
-  }, [apiKey]);
+    return () => { mounted = false; };
+  }, [apiKey, isAudioReady]);
 
-  // Audio visualization
+  // Visualization effect - only start when system is fully ready
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !isSystemReady) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let isActive = true; // Track if effect is active
+    let isActive = true;
 
-    // Set initial canvas dimensions
+    // Responsive sizing function
     const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      
+      // Set display size
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      
+      // Set actual size in memory
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      // Scale context to match DPR
+      ctx.scale(dpr, dpr);
+      
+      console.log('Canvas resized:', {
+        displayWidth: rect.width,
+        displayHeight: rect.height,
+        actualWidth: canvas.width,
+        actualHeight: canvas.height,
+        dpr
+      });
     };
-    resizeCanvas();
 
-    // Add resize listener
+    // Initial resize
+    resizeCanvas();
+    
+    // Add resize observer for container changes
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+    resizeObserver.observe(canvas.parentElement!);
+
+    // Add window resize listener
     window.addEventListener('resize', resizeCanvas);
 
     const render = () => {
       if (!isActive || !ctx) return;
 
-      // Clear previous frame
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Get frequency data from AudioService
       const frequencies = audioService.getFrequencies('voice');
       
-      // Only render if we have frequency data and audio is playing
-      if (frequencies && isAudioPlaying) {
+      if (frequencies?.values) {
+        // Calculate responsive bar width based on canvas size
+        const barWidth = Math.max(4, Math.min(20, canvas.width / 100));
+        
         WavRenderer.drawBars(
           canvas,
           ctx,
           frequencies.values,
-          '#9333ea', // Purple color
-          10,        // Bar width
-          0,         // X offset
-          8          // Y scale
+          isAudioPlaying ? '#9333ea' : '#e5e7eb',
+          barWidth,  // Dynamic bar width
+          2,   // min height
+          100  // scale
         );
       }
 
@@ -128,20 +174,15 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
 
     return () => {
       isActive = false;
+      resizeObserver.disconnect();
       window.removeEventListener('resize', resizeCanvas);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isAudioPlaying]); // Add isAudioPlaying as dependency
+  }, [isSystemReady, isAudioPlaying]);
 
   // Audio playback controls
-  const playCurrentEvent = async () => {
-    if (!sequencer || isAudioPlaying || !currentEvent) return;
-    await audioService.unlockAudio();
-    await sequencer.processNextEvent();
-  };
-
   const goToNextEvent = () => {
     if (scene && currentEventIndex < scene.events.length - 1 && !isAudioPlaying) {
       setCurrentEventIndex(prev => prev + 1);
@@ -153,6 +194,10 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
       setCurrentEventIndex(prev => prev - 1);
     }
   };
+
+  useEffect(() => {
+    console.log('Audio playing state:', isAudioPlaying);
+  }, [isAudioPlaying]);
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-lg max-w-4xl w-full">
@@ -202,10 +247,18 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
       </div>
 
       <div className="mb-6 bg-gray-100 rounded-lg p-4">
-        <canvas 
-          ref={canvasRef}
-          className="w-full h-24"
-        />
+        <div className="relative w-full aspect-[8/1]">
+          <canvas 
+            ref={canvasRef}
+            className="w-full h-full"
+            style={{ 
+              display: 'block',
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem'
+            }}
+          />
+        </div>
       </div>
 
       <motion.p
@@ -226,14 +279,6 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
           variant="outline"
         >
           Previous
-        </Button>
-
-        <Button
-          onClick={playCurrentEvent}
-          disabled={isAudioPlaying}
-          variant="default"
-        >
-          {isAudioPlaying ? 'Playing...' : 'Play'}
         </Button>
 
         <Button

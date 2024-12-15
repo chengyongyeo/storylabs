@@ -75,9 +75,6 @@ export class StorySequencer {
 
   public async connect(): Promise<void> {
     try {
-      console.log('StorySequencer: Initializing audio service...');
-      await audioService.initialize();
-
       console.log('StorySequencer: Creating OpenAI client...');
       this.client = await getOpenAIClient({
         apiKey: this.options.apiKey,
