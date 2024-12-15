@@ -179,8 +179,7 @@ export class StorySequencer {
         instructions: characterInstructions,
         voice: pendingEvent.character?.voice || 'coral', // Default narrator voice
         output_audio_format: 'pcm16',
-        temperature: 0.3,
-        max_output_tokens: 150
+        temperature: 0.1
     });
       
       // Return the audio event so UI can track its status
