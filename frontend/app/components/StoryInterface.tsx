@@ -112,35 +112,21 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
 
     let isActive = true;
 
-    // Responsive sizing function
     const resizeCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       
-      // Set display size
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      
-      // Set actual size in memory
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       
-      // Scale context to match DPR
+      // Scale context to account for device pixel ratio
       ctx.scale(dpr, dpr);
-      
-
     };
 
-    // Initial resize
     resizeCanvas();
     
-    // Add resize observer for container changes
-    const resizeObserver = new ResizeObserver(() => {
-      resizeCanvas();
-    });
+    const resizeObserver = new ResizeObserver(resizeCanvas);
     resizeObserver.observe(canvas.parentElement!);
-
-    // Add window resize listener
     window.addEventListener('resize', resizeCanvas);
 
     const render = () => {
@@ -149,17 +135,19 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
       const frequencies = audioService.getFrequencies('voice');
       
       if (frequencies?.values) {
-        // Calculate responsive bar width based on canvas size
-        const barWidth = Math.max(4, Math.min(20, canvas.width / 100));
+        const barWidth = Math.max(4, Math.min(20, canvas.width / 128));
+        
+        // Use dynamic color based on playing state
+        const baseColor = isAudioPlaying ? '#c084fc' : '#9ca3af';
         
         WavRenderer.drawBars(
           canvas,
           ctx,
           frequencies.values,
-          isAudioPlaying ? '#9333ea' : '#e5e7eb',
-          barWidth,  // Dynamic bar width
-          2,   // min height
-          100  // scale
+          baseColor,
+          barWidth,
+          3,   // Slightly higher min height
+          150  // Increased scale for better visibility
         );
       }
 
