@@ -25,21 +25,10 @@ class AudioService {
     if (this.isInitialized) return;
     
     try {
-      console.log('AudioService: Creating AudioContext...');
       this.audioContext = new AudioContext({ sampleRate: 24000 });
-      
-      console.log('AudioService: Connecting WavStreamPlayer...');
       await this.player.connect();
-      
-      console.log('AudioService: Checking analyzer node...');
-      if (!this.player.analyser) {
-        console.warn('AudioService: No analyzer node found!');
-      }
-      
       this.isInitialized = true;
-      console.log('AudioService: Initialization complete');
     } catch (error) {
-      console.error('Failed to initialize AudioService:', error);
       throw error;
     }
   }
@@ -58,26 +47,11 @@ class AudioService {
 
   getFrequencies(channel: 'voice' | 'frequency' | 'music' = 'voice') {
     if (!this.isInitialized) {
-      console.log('AudioService: Not initialized when getting frequencies');
       return { values: new Float32Array(128).fill(0) };
     }
     try {
-      // Get raw frequency data
-      const frequencies = this.player.getFrequencies(channel);
-      
-      // Log the actual values we're getting
-      console.log('AudioService: Raw frequencies', {
-        hasData: !!frequencies,
-        channel,
-        length: frequencies?.values?.length,
-        analyserExists: !!this.player.analyser,
-        maxValue: frequencies?.values ? Math.max(...Array.from(frequencies.values)) : 0,
-        firstFewValues: frequencies?.values ? Array.from(frequencies.values.slice(0, 5)) : []
-      });
-
-      return frequencies;
+      return this.player.getFrequencies(channel);
     } catch (error) {
-      console.error('Error getting frequencies:', error);
       return { values: new Float32Array(128).fill(0) };
     }
   }

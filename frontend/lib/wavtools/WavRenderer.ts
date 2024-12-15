@@ -20,7 +20,6 @@ export class WavRenderer {
 
       // Find the maximum value for scaling
       const maxValue = Math.max(...Array.from(values));
-      console.log('Max frequency value:', maxValue);
 
       // Clear canvas
       ctx.clearRect(0, 0, width, height);
@@ -43,17 +42,6 @@ export class WavRenderer {
 
         // Draw the bar
         ctx.fillRect(x, y, barWidth - spacing, barHeight);
-
-        // Debug first few bars
-        if (i < 5) {
-          console.log(`Bar ${i}:`, {
-            value,
-            maxValue,
-            barHeight,
-            x,
-            y
-          });
-        }
       }
     }
 

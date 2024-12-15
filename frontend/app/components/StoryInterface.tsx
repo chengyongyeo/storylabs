@@ -10,6 +10,7 @@ import { WavRenderer } from '@/lib/wavtools/WavRenderer'
 import type { ParsedScene, StoryEvent } from '@/lib/story/SceneParser'
 import { audioService } from '@/lib/audio/AudioService'
 import { WavStreamPlayer } from '@/lib/audio/AudioService'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface StoryInterfaceProps {
   userInfo: {
@@ -272,21 +273,23 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
         {currentEvent?.text}
       </motion.p>
 
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-4">
         <Button
           onClick={goToPreviousEvent}
           disabled={currentEventIndex === 0 || isAudioPlaying}
-          variant="outline"
+          className="text-lg py-2 px-6 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-full transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
         >
+          <ChevronLeft className="w-5 h-5" />
           Previous
         </Button>
 
         <Button
           onClick={goToNextEvent}
           disabled={currentEventIndex >= scene?.events.length - 1 || isAudioPlaying}
-          variant="outline"
+          className="text-lg py-2 px-6 bg-yellow-400 hover:bg-yellow-500 text-purple-800 font-bold rounded-full transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center gap-2"
         >
           Next
+          <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
     </div>
