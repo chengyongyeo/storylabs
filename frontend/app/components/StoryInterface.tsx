@@ -81,44 +81,59 @@ export default function StoryInterface({ userInfo }: StoryInterfaceProps) {
 
   // Audio visualization
   useEffect(() => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current) return;
 
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    canvas.width = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
+    let isActive = true; // Track if effect is active
+
+    // Set initial canvas dimensions
+    const resizeCanvas = () => {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    };
+    resizeCanvas();
+
+    // Add resize listener
+    window.addEventListener('resize', resizeCanvas);
 
     const render = () => {
-      if (!scene || !ctx) return
+      if (!isActive || !ctx) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // Clear previous frame
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const frequencies = audioService.getFrequencies('voice')
-      if (frequencies) {
+      // Get frequency data from AudioService
+      const frequencies = audioService.getFrequencies('voice');
+      
+      // Only render if we have frequency data and audio is playing
+      if (frequencies && isAudioPlaying) {
         WavRenderer.drawBars(
           canvas,
           ctx,
           frequencies.values,
-          '#9333ea',
-          10,
-          0,
-          8
-        )
+          '#9333ea', // Purple color
+          10,        // Bar width
+          0,         // X offset
+          8          // Y scale
+        );
       }
 
-      animationRef.current = requestAnimationFrame(render)
-    }
+      animationRef.current = requestAnimationFrame(render);
+    };
 
-    render()
+    render();
 
     return () => {
+      isActive = false;
+      window.removeEventListener('resize', resizeCanvas);
       if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
+        cancelAnimationFrame(animationRef.current);
       }
-    }
-  }, [scene])
+    };
+  }, [isAudioPlaying]); // Add isAudioPlaying as dependency
 
   // Audio playback controls
   const playCurrentEvent = async () => {
