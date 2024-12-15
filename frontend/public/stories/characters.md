@@ -1,7 +1,7 @@
 # characters.md
 @character: Narrator
 prompt: Warm, friendly storyteller with a magical presence
-voice: coral
+voice: shimmer
 personality: {"trait":"engaging and imaginative","goal":"guide children through the story","speech_style":"clear, warm, and filled with wonder"}
 
 @character: Captain Zip

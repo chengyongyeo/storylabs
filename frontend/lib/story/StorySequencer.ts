@@ -89,12 +89,13 @@ export class StorySequencer {
         output_audio_format: 'pcm16' as const,
         input_audio_transcription: { model: 'whisper-1' as const },
         turn_detection: { type: 'server_vad' as const },
-        temperature: 0.3
+        temperature: 0.3,
+        voice: 'coral' as const
       };
       
       console.log('StorySequencer: Updating session with params:', sessionParams);
-      const response = await this.client.updateSession(sessionParams);
-      console.log('Session update response:', response);
+      await this.client.updateSession(sessionParams);
+      console.log('Client session config after update:', (this.client as any).sessionConfig);
 
       console.log('StorySequencer connected successfully');
     } catch (error) {
@@ -157,7 +158,8 @@ export class StorySequencer {
       if (isNarratorEvent && !narratorCharacter) {
         throw new Error('Narrator character not found in scene');
       }
-
+      const voiceToUse = isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice;
+      console.log('Using voice:', voiceToUse);
       const characterInstructions = isNarratorEvent
         ? `You are the Narrator. ${narratorCharacter!.prompt}. 
            Your personality is ${JSON.stringify(narratorCharacter!.personality)}.
@@ -168,27 +170,27 @@ export class StorySequencer {
            Say exactly: "${pendingEvent.text}"`;
 
       const sessionUpdateParams = {
-        modalities: ['text', 'audio'],
         voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
         instructions: characterInstructions,
-        output_audio_format: 'pcm16' as const
       };
 
       console.log('Updating session with params:', sessionUpdateParams);
-      const sessionResponse = await this.client.updateSession(sessionUpdateParams);
-      console.log('Session update response:', sessionResponse);
+      await this.client.updateSession(sessionUpdateParams);
+      console.log('Client session config after update:', (this.client as any).sessionConfig);
 
-      await this.client.sendUserMessageContent([
-        { type: 'input_text', text: pendingEvent.text }
-      ]);
+      // await this.client.sendUserMessageContent([
+      //   { type: 'input_text', text: pendingEvent.text }
+      // ]);
 
-      await this.client.realtime.send('response.create', {
-        modalities: ['text', 'audio'],
-        instructions: characterInstructions,
-        voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
-        output_audio_format: 'pcm16' as const,
-        temperature: 0.1
-      });
+      await this.client.realtime.send('response.create');
+
+      // await this.client.realtime.send('response.create', {
+      //   modalities: ['text', 'audio'],
+      //   instructions: characterInstructions,
+      //   voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
+      //   output_audio_format: 'pcm16' as const,
+      //   temperature: 0.1
+      // });
       
       return audioEvent;
     } catch (error) {
