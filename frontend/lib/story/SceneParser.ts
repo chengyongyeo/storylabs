@@ -2,7 +2,7 @@
 export interface Character {
   name: string;
   prompt: string;
-  voice: "alloy" | "echo" | "shimmer" | "ash" | "ballad" | "coral" | "sage" | "verse" | "nova";
+  voice: "alloy" | "echo" | "shimmer" | "ash" | "ballad" | "coral" | "sage" | "verse";
   personality: {
     trait: string;
     goal: string;

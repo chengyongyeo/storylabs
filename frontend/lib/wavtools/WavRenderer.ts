@@ -68,7 +68,7 @@ export class WavRenderer {
       const smoothed = new Float32Array(newValues.length);
       for (let i = 0; i < newValues.length; i++) {
         // Enhanced smoothing with decay
-        const decay = 0.95; // Adjust for different decay rates
+        const decay = 0.75; // Adjust for different decay rates
         const target = Math.max(newValues[i], this.previousValues[i] * decay);
         smoothed[i] = this.previousValues[i] * (1 - this.smoothingFactor) + 
                       target * this.smoothingFactor;

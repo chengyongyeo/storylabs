@@ -84,13 +84,17 @@ export class StorySequencer {
       console.log('StorySequencer: Setting up client handlers...');
       this.setupClientHandlers();
 
-      console.log('StorySequencer: Updating session...');
-      await this.client.updateSession({
+      const sessionParams = {
         modalities: ['text', 'audio'],
-        output_audio_format: 'pcm16',
-        input_audio_transcription: { model: 'whisper-1' },
-        turn_detection: { type: 'server_vad' }
-      });
+        output_audio_format: 'pcm16' as const,
+        input_audio_transcription: { model: 'whisper-1' as const },
+        turn_detection: { type: 'server_vad' as const },
+        temperature: 0.3
+      };
+      
+      console.log('StorySequencer: Updating session with params:', sessionParams);
+      const response = await this.client.updateSession(sessionParams);
+      console.log('Session update response:', response);
 
       console.log('StorySequencer connected successfully');
     } catch (error) {
@@ -147,28 +151,32 @@ export class StorySequencer {
     audioEvent.status = 'playing';
 
     try {
-      const characterInstructions = pendingEvent.character 
-        ? `You are ${pendingEvent.character.name}. ${pendingEvent.character.prompt}. 
+      const isNarratorEvent = !pendingEvent.character;
+      const narratorCharacter = this.currentScene?.events.find(e => e.character?.name === 'Narrator')?.character;
+      
+      if (isNarratorEvent && !narratorCharacter) {
+        throw new Error('Narrator character not found in scene');
+      }
+
+      const characterInstructions = isNarratorEvent
+        ? `You are the Narrator. ${narratorCharacter!.prompt}. 
+           Your personality is ${JSON.stringify(narratorCharacter!.personality)}.
+           Say exactly: "${pendingEvent.text}"`
+        : `You are ${pendingEvent.character.name}. ${pendingEvent.character.prompt}. 
            Your personality is ${JSON.stringify(pendingEvent.character.personality)}.
            ${pendingEvent.emotion ? `Speak with ${pendingEvent.emotion} emotion.` : ''}
-           Say exactly: "${pendingEvent.text}"`
-        : `You are the Narrator. Warm, friendly storyteller with a magical presence. 
-           Your personality is engaging and imaginative, your goal is to guide children 
-           through the story while building excitement, and your speech style is clear, 
-           warm, and filled with wonder.
            Say exactly: "${pendingEvent.text}"`;
 
-      await this.client.updateSession({
+      const sessionUpdateParams = {
         modalities: ['text', 'audio'],
-        voice: pendingEvent.character?.voice || 'sage',
+        voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
         instructions: characterInstructions,
-        output_audio_format: 'pcm16'
-      });
+        output_audio_format: 'pcm16' as const
+      };
 
-      console.log('Sending message:', {
-        voice: pendingEvent.character?.voice || 'sage',
-        text: pendingEvent.text
-      });
+      console.log('Updating session with params:', sessionUpdateParams);
+      const sessionResponse = await this.client.updateSession(sessionUpdateParams);
+      console.log('Session update response:', sessionResponse);
 
       await this.client.sendUserMessageContent([
         { type: 'input_text', text: pendingEvent.text }
@@ -177,12 +185,11 @@ export class StorySequencer {
       await this.client.realtime.send('response.create', {
         modalities: ['text', 'audio'],
         instructions: characterInstructions,
-        voice: pendingEvent.character?.voice || 'coral', // Default narrator voice
-        output_audio_format: 'pcm16',
+        voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
+        output_audio_format: 'pcm16' as const,
         temperature: 0.1
-    });
+      });
       
-      // Return the audio event so UI can track its status
       return audioEvent;
     } catch (error) {
       console.error('Error processing audio event:', error);
