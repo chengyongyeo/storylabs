@@ -29,6 +29,15 @@ export class StorySequencer {
   }
 
   private setupClientHandlers() {
+    // Add session tracking
+    this.client.on('server.session.created', (event) => {
+      console.log('Session created:', event);
+    });
+    
+    this.client.on('server.session.updated', (event) => {
+      console.log('Session updated:', event);
+    });
+
     this.client.on('conversation.updated', async ({ item, delta }) => {
       // Handle audio chunks as they come in
       if (delta?.audio && this.currentEventId) {
@@ -89,7 +98,7 @@ export class StorySequencer {
         output_audio_format: 'pcm16' as const,
         input_audio_transcription: { model: 'whisper-1' as const },
         turn_detection: { type: 'server_vad' as const },
-        temperature: 0.3,
+        temperature: 0.6,
         voice: 'coral' as const
       };
       
@@ -170,27 +179,23 @@ export class StorySequencer {
            Say exactly: "${pendingEvent.text}"`;
 
       const sessionUpdateParams = {
-        voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
+        voice: voiceToUse,
         instructions: characterInstructions,
       };
 
+      console.log('Current session ID:', (this.client as any).sessionId);
       console.log('Updating session with params:', sessionUpdateParams);
       await this.client.updateSession(sessionUpdateParams);
-      console.log('Client session config after update:', (this.client as any).sessionConfig);
 
-      // await this.client.sendUserMessageContent([
-      //   { type: 'input_text', text: pendingEvent.text }
-      // ]);
-
-      await this.client.realtime.send('response.create');
-
-      // await this.client.realtime.send('response.create', {
-      //   modalities: ['text', 'audio'],
-      //   instructions: characterInstructions,
-      //   voice: isNarratorEvent ? narratorCharacter!.voice : pendingEvent.character.voice,
-      //   output_audio_format: 'pcm16' as const,
-      //   temperature: 0.1
-      // });
+      // Try setting voice directly in response.create
+      await this.client.realtime.send('response.create', {
+        response: {
+          voice: voiceToUse,
+          instructions: characterInstructions,
+          modalities: ['text', 'audio'],
+          output_audio_format: 'pcm16'
+        }
+      });
       
       return audioEvent;
     } catch (error) {

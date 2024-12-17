@@ -10,6 +10,7 @@ class OpenAIService {
   private client: RealtimeClient | null = null;
   private isInitializing: boolean = false;
   private initPromise: Promise<RealtimeClient> | null = null;
+  private eventHandlersSet: boolean = false;
 
   private constructor() {}
 
@@ -18,6 +19,34 @@ class OpenAIService {
       OpenAIService.instance = new OpenAIService();
     }
     return OpenAIService.instance;
+  }
+
+  private setupEventHandlers() {
+    if (this.eventHandlersSet || !this.client) return;
+
+    // Add websocket event logging
+    this.client.on('realtime.event', (event: any) => {
+      const timestamp = new Date().toISOString();
+      console.log(`[OpenAI WS ${timestamp}]`, {
+        type: event.type,
+        source: event.source,
+        data: event
+      });
+    });
+
+    this.client.on('server.session.created', (event) => {
+      console.log('[OpenAI Session Created]:', event);
+    });
+    
+    this.client.on('server.session.updated', (event) => {
+      console.log('[OpenAI Session Updated]:', event);
+    });
+
+    this.client.on('error', (error: any) => {
+      console.error('[OpenAI WS Error]:', error);
+    });
+
+    this.eventHandlersSet = true;
   }
 
   async initialize(config: OpenAIConfig): Promise<RealtimeClient> {
@@ -31,6 +60,7 @@ class OpenAIService {
         // Disconnect existing client if any
         if (this.client) {
           await this.client.disconnect();
+          this.eventHandlersSet = false;
         }
 
         // Create new client with proper configuration
@@ -39,6 +69,9 @@ class OpenAIService {
           dangerouslyAllowAPIKeyInBrowser: true,
           url: config.serverUrl || 'wss://api.openai.com/v1/realtime'
         });
+
+        // Set up event handlers before connecting
+        this.setupEventHandlers();
 
         console.log('Attempting to connect to OpenAI Realtime API...');
 
